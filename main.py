@@ -7,8 +7,6 @@ from src.handlers.common import register_common_handlers
 from src.handlers.faq_child import register_child_faq_handlers
 from src.handlers.faq_client import register_client_faq_handlers
 
-
-print("Start telegram bot...")
 state_storage = StateMemoryStorage()
 
 bot = TeleBot(TELEGRAM_BOT_TOKEN, state_storage=state_storage)

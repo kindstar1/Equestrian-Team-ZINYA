@@ -3,6 +3,7 @@ from src.models import MyStates
 from src.keyboards import generate_schedule_keyboard
 from src.handlers.common import back_to_menu
 from src.config import ADMIN_ID
+from src.handlers.common import markup_remover
 
 # Цепочка вопросов для сбора информаии о ребенке
 def register_child_faq_handlers(bot):
@@ -12,7 +13,7 @@ def register_child_faq_handlers(bot):
         tg_id = message.from_user.id
         with bot.retrieve_data(tg_id, cid) as data:
             data["parent_name"] = message.text
-        bot.send_message(cid, "Как зовут Вашего ребенка?")
+        bot.send_message(cid, "Как зовут Вашего ребенка?", reply_markup=markup_remover)
         bot.set_state(tg_id, MyStates.get_name_chld, cid)
 
 
@@ -111,6 +112,10 @@ def register_child_faq_handlers(bot):
         cid = message.chat.id
         tg_id = message.from_user.id
         username = message.from_user.username
+        markup = types.InlineKeyboardMarkup()
+        sign_button = types.InlineKeyboardButton("Записать на пробную тренировку", callback_data=f"trial_signup:{tg_id}")
+        markup.add(sign_button)
+        # ДОПИСАТЬ КОД С КНОКОЙ ЗАПИСАТЬ НА ПРОБНУЮ ТРЕНИРОВКУ
         with bot.retrieve_data(tg_id, cid) as data:
             data["child_prefers"] = message.text
             if username:
@@ -129,7 +134,7 @@ def register_child_faq_handlers(bot):
                 f"Время: {data.get('child_time', 'не указано')}\n"
                 f"Предпочтения: {data.get('child_prefers', 'нет')}"
                 )
-            bot.send_message(ADMIN_ID, admin_message)
+            bot.send_message(ADMIN_ID, admin_message, reply_markup=markup)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         btn1 = types.KeyboardButton("Возврат в главное меню")
         markup.add(btn1)

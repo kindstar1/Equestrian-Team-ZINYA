@@ -14,7 +14,6 @@ commands = [
     types.BotCommand("review", "Детский лагерь"), # ссылка на Юлин сайт? возможно предзапись в лист ожидания - в админке продумать вызов всей инфы по записавшимся
     types.BotCommand("review", "Обратная связь"), # будут предлагаться кнопки остаивть отзыв и посмотреть отзывы (лонгридом) и связаться с тренером
     types.BotCommand("support", "Связаться с тех.поддержкой"), # написать АБ по проблеме работы бота
-    types.BotCommand("restart", "Перезапустить бота")
 ]
 
 markup_remover = types.ReplyKeyboardRemove()
@@ -123,7 +122,7 @@ def register_common_handlers(bot):
         if message.text == "Я":
             with bot.retrieve_data(tg_id, cid) as data:
                 data["person"] = "Запрос сформирован всадником"
-            bot.send_message(cid, "Как Вас зовут?")
+            bot.send_message(cid, "Как Вас зовут?", reply_markup=markup_remover)
             bot.set_state(tg_id, MyStates.client, cid)
         elif message.text == "Ребенок":
             with bot.retrieve_data(tg_id, cid) as data:
