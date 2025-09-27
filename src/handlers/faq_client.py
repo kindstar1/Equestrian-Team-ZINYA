@@ -32,7 +32,7 @@ def register_client_faq_handlers(bot):
                 cid,
                 f"{client_name}, к сожалению, на данный момент тренировки для всадников младше 12-ти лет не поводим :( Но будем Вас ждать немного позже!",
             )
-            back_to_menu(message)
+            back_to_menu(bot, message)
             bot.delete_state(tg_id, cid)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
