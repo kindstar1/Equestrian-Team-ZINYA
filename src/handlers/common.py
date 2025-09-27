@@ -3,11 +3,11 @@ from sqlalchemy import select, func, and_
 from src.database import SessionLocal
 
 from src.keyboards import generate_stars_keyboard
-from src.models import Command
-from src.models import Command, MyStates
+from src.models import Command, MyStates, MOSCOW_TZ, weekdays, months
 from src.config import SUPPORT_BOT, ADMIN_ID
-from src.models import Users, UserRole, UserStatus, Review
+from src.models import Users, UserRole, UserStatus, Review, Schedule, ScheduleStatus
 from telebot import types
+from datetime import datetime, timedelta
 
 commands = [
     types.BotCommand("menu", "Меню"),
@@ -29,6 +29,7 @@ cmd_str= [
     '/review',
     '/support',
 ]
+
 
 markup_remover = types.ReplyKeyboardRemove()
 
@@ -94,6 +95,49 @@ def know_info_about_camp(bot, message):
         bot.send_message(
             cid, 'Выбери действие:', 
             reply_markup=markup)
+        
+def get_week_trainings(user_id):
+    """
+    Получает из БД запланированные тренировки пользователя на ближайшие 7 дней.
+    """
+    with SessionLocal() as session:
+        # 1. Определяем временной интервал (следующие 7 дней)
+        now_moscow = datetime.now(MOSCOW_TZ)
+        end_of_week = now_moscow + timedelta(days=7)
+
+        # 2. Формируем запрос к БД
+        stmt = (
+            select(Schedule)
+            .where(Schedule.user_id == user_id)
+            .where(Schedule.train_status == ScheduleStatus.scheduled) # <-- Фильтр по статусу
+            .where(Schedule.scheduled_datetime.between(now_moscow, end_of_week)) # <-- Фильтр по дате
+            .order_by(Schedule.scheduled_datetime.asc())
+        )
+        
+        # 3. Выполняем запрос и возвращаем результат
+        return session.execute(stmt).scalars().all()
+
+def format_week_trainings(trainings_list):
+    """
+    Форматирует список тренировок в красивое текстовое сообщение.
+    """
+    if not trainings_list:
+        return "На ближайшую неделю запланированных тренировок нет."
+
+    # Словарь для перевода дней недели
+    weekdays = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+    
+    response_text = "<b>Тренировки на ближайшую неделю:</b>\n\n"
+    for training in trainings_list:
+        dt = training.scheduled_datetime
+        day_of_week = weekdays[dt.weekday()]
+        
+        # Форматируем дату без года, так как она близка
+        response_text += f"📅 <b>{day_of_week}, {dt.strftime('%d %B')}</b>\n"
+        response_text += f"🕒 {dt.strftime('%H:%M')} - 🐴 {training.horse.horse_name}\n\n"
+        
+    return response_text
+
 
 
 def register_common_handlers(bot):
@@ -257,6 +301,9 @@ def register_common_handlers(bot):
                 ses.commit()
                 bot.send_message(cid, "✅ Спасибо! Ваша оценка успешно сохранена.")
                 back_to_menu(bot, message)
+                admin_review = (f"💡Юля, у тебя новый отзыв!\n\n"
+                                f"Текст не оставили, но звездная оценка: {'⭐' * stars}")
+                bot.send_message(ADMIN_ID, admin_review)
             except Exception as e:
                 ses.rollback()
                 bot.send_message(cid, "❌ Произошла ошибка при сохранении оценки.", reply_markup=markup)
@@ -269,6 +316,9 @@ def register_common_handlers(bot):
                 ses.add(new_review)
                 ses.commit()
                 bot.send_message(cid, "✅ Спасибо! Ваша оценка успешно сохранена.\nВызовите команду повторно, пожалуйста")
+                admin_review = (f"💡Юля, у тебя новый отзыв!\n\n"
+                                f"Текст не оставили, но звездная оценка: {'⭐' * stars}")
+                bot.send_message(ADMIN_ID, admin_review)
             except Exception as e:
                 ses.rollback()
                 bot.send_message(cid, "❌ Произошла ошибка при сохранении оценки.", reply_markup=markup)
@@ -284,6 +334,10 @@ def register_common_handlers(bot):
                 ses.add(new_review)
                 ses.commit()
                 bot.send_message(cid, "✅ Спасибо! Ваши оценка и отзыв успешно сохранены.", reply_markup=markup)
+                admin_review = (f"💡Юля, у тебя новый отзыв!\n\n"
+                                f"Звездная оценка: {'⭐' * stars}\n\n"
+                                f"Комментарий всадника: {review_text}")
+                bot.send_message(ADMIN_ID, admin_review)
             except Exception as e:
                 ses.rollback()
                 bot.send_message(cid, "❌ Произошла ошибка при сохранении отзыва.", reply_markup=markup)
@@ -449,13 +503,23 @@ def register_common_handlers(bot):
     def my_trainings(message):
         ses = SessionLocal()
         cid = message.chat.id
-        tg_id = message.from_user.id
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
+        btn1 = types.KeyboardButton("Посмотреть график ближайших тренировок")
+        btn2 = types.KeyboardButton("Отменить тренировку")
+        btn3 = types.KeyboardButton("Запросить перенос тренировки")
+        btn4 = types.KeyboardButton("Продлить аренду")
+        btn5 = types.KeyboardButton("Возврат в главное меню🔙")
+        markup.add(btn1, btn2, btn3, btn4, btn5)
+        bot.send_message(
+            cid, 'Выбери действие:', 
+            reply_markup=markup
+        )
+
 
 # Функция оставить\посмотреть отзывы
     @bot.message_handler(commands=["review"])
     def review(message):
         cid = message.chat.id
-        tg_id = message.from_user.id
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
         btn1 = types.KeyboardButton("Посмотреть отзывы")
         btn2 = types.KeyboardButton("Оставить отзыв")
@@ -552,3 +616,51 @@ def register_common_handlers(bot):
         bot.send_message(cid, text, reply_markup=markup)
         tg_id = message.from_user.id
         bot.set_state(tg_id, MyStates.contact_to_yulia, cid)      
+    
+    @bot.message_handler(func=lambda message: message.text == Command.NEXT_WORKOUT)
+    def get_next_workout(message):
+        cid = message.chat.id
+        tg_id = message.from_user.id
+        ses = SessionLocal()
+        now_moscow = datetime.now(MOSCOW_TZ)
+        end_of_week = now_moscow + timedelta(days=7)
+        schedule = (
+            select(Schedule)
+            .where(Schedule.user_id == tg_id)
+            .where(Schedule.train_status == ScheduleStatus.scheduled) 
+            .where(Schedule.scheduled_datetime.between(now_moscow, end_of_week))
+            .order_by(Schedule.scheduled_datetime.asc())
+        )
+        schedule_list = ses.execute(schedule).scalars().all()
+        if not schedule_list:
+            assoc = select(Users).where(Users.user_id==tg_id)
+            check_status = ses.execute(assoc).scalar_one_or_none()
+            if check_status.status == 'inactive':
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+                btn1 = types.KeyboardButton("Записаться на пробную тренировку")
+                btn2 = types.KeyboardButton("Возврат в главное меню🔙")
+                markup.add(btn1, btn2)
+                bot.send_message(cid, "На ближайшую неделю нет запланированных тренировок", reply_markup=markup)
+                ses.close()
+            else:
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+                btn1 = types.KeyboardButton("Продлить аренду")
+                btn2 = types.KeyboardButton("Возврат в главное меню🔙")
+                markup.add(btn1, btn2)
+                bot.send_message(cid, "На ближайшую неделю нет запланированных тренировок", reply_markup=markup)
+                ses.close()
+        else:
+            response_text = "<b>Ваши ближайшие тренировки:</b>\n\n"
+            for tr in schedule_list:
+                dt = tr.scheduled_datetime
+                day_of_week = weekdays[dt.weekday()]
+                month_name = months[dt.month]
+                response_text += f"📅 <b>{day_of_week}, {dt.day} {month_name}</b>\n\n"
+                response_text += f"🕒 {dt.strftime('%H:%M')} - 🐴 {tr.horse.horse_name}\n\n"
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            btn1 = types.KeyboardButton("Отменить тренировку")
+            btn2 = types.KeyboardButton("Запросить перенос тренировки")
+            btn3 = types.KeyboardButton("Возврат в главное меню🔙")
+            markup.add(btn1, btn2, btn3)
+            bot.send_message(message.chat.id, response_text, reply_markup=markup, parse_mode="HTML")
+
