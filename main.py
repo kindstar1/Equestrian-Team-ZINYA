@@ -43,8 +43,9 @@ def echo_state(message):
         cid, f"ОТЛАДКА: Получен текст '{message.text}'. Текущее состояние: {state}"
     )
 
-# Запускаем веб-сервер в отдельном потоке, а бота - в основном
 if __name__ == "__main__":
     server_thread = threading.Thread(target=run_web_server)
+    server_thread.daemon = True  
     server_thread.start()
+    
     bot.infinity_polling(skip_pending=True)
