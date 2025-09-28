@@ -5,6 +5,13 @@ from src.handlers.common import back_to_menu
 from src.config import ADMIN_ID
 from src.handlers.common import markup_remover
 
+allure_list = [
+    "Нет опыта верховой езды",
+    "Начальный: шаг",
+    "Средний: шаг + рысь"
+    "Продвинутый: все 3 аллюра"
+]
+
 # Цепочка вопросов для сбора информаии о ребенке
 def register_child_faq_handlers(bot):
     @bot.message_handler(state=MyStates.parent)
@@ -39,7 +46,7 @@ def register_child_faq_handlers(bot):
                 cid,
                 f"❗{parent_name}, для детей младше 8-ми лет потребуется отдельное собеседование с тренером для понимания, сможет ли ребенок тренироваться на лошади, а не пони!",
             )
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             btn1 = types.KeyboardButton("Нет опыта верховой езды")
             btn2 = types.KeyboardButton("Начальный: шаг")
             btn3 = types.KeyboardButton("Средний: шаг + рысь")
@@ -50,7 +57,7 @@ def register_child_faq_handlers(bot):
             )
             bot.set_state(tg_id, MyStates.get_level_chld, cid)
         else:
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             btn1 = types.KeyboardButton("Нет опыта верховой езды")
             btn2 = types.KeyboardButton("Начальный: шаг")
             btn3 = types.KeyboardButton("Средний: шаг + рысь")
@@ -66,9 +73,12 @@ def register_child_faq_handlers(bot):
     def get_schedule_child(message):
         cid = message.chat.id
         tg_id = message.from_user.id
-        with bot.retrieve_data(tg_id, cid) as data:
-            data["child_level"] = message.text
-        ask_for_schedule_child(message)
+        if message.text not in allure_list:
+            bot.send_message(cid, "Команда не распознана, пожалуйста, используйте кнопки.")
+        else:
+            with bot.retrieve_data(tg_id, cid) as data:
+                data["child_level"] = message.text
+            ask_for_schedule_child(message)
 
 
     @bot.callback_query_handler(state=MyStates.get_schedule_chld, func=lambda call: True)
@@ -162,7 +172,7 @@ def register_child_faq_handlers(bot):
         initial_markup = generate_schedule_keyboard([])
         bot.send_message(
             cid,
-            "Выберите удобные дни недели для занятий (можно несколько вариантов)\nСначала нажмите на дни недели, в которые удобно посещать занятия, затем нажмите на кнопку 'Готово'",
+            "Выберите удобные дни недели для занятий (можно несколько вариантов), затем нажмите на кнопку 'Готово'",
             reply_markup=initial_markup,
         )
         bot.set_state(tg_id, MyStates.get_schedule_chld, cid)

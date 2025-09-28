@@ -25,7 +25,9 @@ class Command:
     SEND_REVIEW = "Оставить отзыв"
     ADD_TO_AWATING_LIST = 'Попасть в лист ожидания'
     CAMP_INFO = "Узнать про детский лагерь"
-    NEXT_WORKOUT = "Посмотреть график ближайших тренировок"
+    NEXT_WORKOUT = "График ближайших тренировок"
+    CANCEL_WORKOUT = 'Отменить тренировку'
+    RESCHEDULE_WORKOUT = "Перенести тренировку"
 
 
 class MyStates(StatesGroup):
@@ -51,6 +53,9 @@ class MyStates(StatesGroup):
     awaiting_stars = State() 
     awaiting_text = State() 
     contact_to_yulia = State()
+    awaiting_new_workout_day = State()
+    awaiting_new_workout_time = State()
+
 
 Base = declarative_base()
 
@@ -89,7 +94,7 @@ class Users(Base):
     full_name = Column(String(255), nullable=False)
     username = Column(String(255), nullable=True)
     role = Column(Enum(UserRole), nullable=False)
-    status = Column(Enum(UserStatus), nullable=False, default=UserStatus.active)
+    status = Column(Enum(UserStatus), nullable=False, default=UserStatus.inactive)
     want_to_camp = Column(Boolean, nullable=False, default=False)
 
 class Rent(Base):

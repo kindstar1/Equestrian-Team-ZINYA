@@ -7,7 +7,7 @@ from src.handlers.common import commands
 from src.handlers.common import register_common_handlers
 from src.handlers.faq_child import register_child_faq_handlers
 from src.handlers.faq_client import register_client_faq_handlers
-from handlers.timeback import register_webapp_handlers
+
 
 from telebot import TeleBot, custom_filters
 from telebot.storage import StateMemoryStorage
@@ -33,7 +33,7 @@ print("Bot is starting...")
 register_common_handlers(bot)
 register_client_faq_handlers(bot)
 register_child_faq_handlers(bot)
-register_webapp_handlers(bot)
+
 
 bot.set_my_commands(commands=commands)
 

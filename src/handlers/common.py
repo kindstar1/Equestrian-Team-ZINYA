@@ -2,7 +2,7 @@ from sqlalchemy import select, func, and_
 
 from src.database import SessionLocal
 
-from src.keyboards import generate_stars_keyboard
+from src.keyboards import generate_stars_keyboard, generate_workout_keyboard, generate_workout_keyboard_re
 from src.models import Command, MyStates, MOSCOW_TZ, weekdays, months
 from src.config import SUPPORT_BOT, ADMIN_ID
 from src.models import Users, UserRole, UserStatus, Review, Schedule, ScheduleStatus
@@ -10,7 +10,6 @@ from telebot import types
 from datetime import datetime, timedelta
 
 commands = [
-    types.BotCommand("menu", "Меню"),
     types.BotCommand("sign", "Записаться на пробную тренировку ✍🏻"),
     types.BotCommand("info", "Информация о команде 📝"), # будут предлагаться узнать стоимость и обратную связь и связаться с тренером, детский лагерь
     types.BotCommand("location", "Где мы находимся 📍"),
@@ -56,7 +55,6 @@ def start_signing_flow(bot, message):
     )
 
 def request_review(bot, message):
-        tg_id = message.from_user.id
         cid = message.chat.id
         ses = SessionLocal()
         random_func = func.random()
@@ -95,6 +93,12 @@ def know_info_about_camp(bot, message):
         bot.send_message(
             cid, 'Выбери действие:', 
             reply_markup=markup)
+
+def check_workout_flow(bot, call):
+    # cid = call.message.chat.id
+    bot.answer_callback_query(call.id,"Ваш запрос направлен тренеру. Ожидайте подтверждения✔", show_alert=True)
+    return
+        
         
 def get_week_trainings(user_id):
     """
@@ -117,31 +121,7 @@ def get_week_trainings(user_id):
         # 3. Выполняем запрос и возвращаем результат
         return session.execute(stmt).scalars().all()
 
-def format_week_trainings(trainings_list):
-    """
-    Форматирует список тренировок в красивое текстовое сообщение.
-    """
-    if not trainings_list:
-        return "На ближайшую неделю запланированных тренировок нет."
-
-    # Словарь для перевода дней недели
-    weekdays = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-    
-    response_text = "<b>Тренировки на ближайшую неделю:</b>\n\n"
-    for training in trainings_list:
-        dt = training.scheduled_datetime
-        day_of_week = weekdays[dt.weekday()]
-        
-        # Форматируем дату без года, так как она близка
-        response_text += f"📅 <b>{day_of_week}, {dt.strftime('%d %B')}</b>\n"
-        response_text += f"🕒 {dt.strftime('%H:%M')} - 🐴 {training.horse.horse_name}\n\n"
-        
-    return response_text
-
-
-
 def register_common_handlers(bot):
-
 
     @bot.message_handler(state=MyStates.greeting)
     def remember_user(message):
@@ -169,17 +149,21 @@ def register_common_handlers(bot):
         bot.delete_state(tg_id, cid)
 
 
-    @bot.message_handler(state=MyStates.support)
+    @bot.message_handler(state=MyStates.support, content_types=['photo', 'text'])
     def save_support_request(message):
         cid = message.chat.id
         tg_id = message.from_user.id
         username = message.from_user.username
         text = message.text
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        btn1 = types.KeyboardButton("Возврат в главное меню🔙")
+        markup.add(btn1)
         if "/" in text:
             bot.delete_state(tg_id, cid)
         else:
-            with bot.retrieve_data(tg_id, cid) as data:
-                data["support_req"] = message.text
+            try:
+                with bot.retrieve_data(tg_id, cid) as data:
+                    data["support_req"] = message.text
                 support_message = (
                     f"🚨 Новое обращение в тех.поддержку!\n\n"
                     f"Ник в тг: @{username}\n"
@@ -188,14 +172,14 @@ def register_common_handlers(bot):
                     f"Описание проблемы: {data.get('support_req')}\n"
                     )
                 bot.send_message(SUPPORT_BOT, support_message)
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            btn1 = types.KeyboardButton("Возврат в главное меню🔙")
-            markup.add(btn1)
-            bot.send_message(
-                cid,
-                "Ваш запрос принят! В ближайшее время тех. сециалист его рассмотрит и устранит неполадки.",
-                reply_markup=markup
-            )
+            
+                bot.send_message(
+                    cid,
+                    "Ваш запрос принят! В ближайшее время тех. сециалист его рассмотрит и устранит неполадки.",
+                    reply_markup=markup
+                )
+            except Exception as e:
+                bot.send_message(cid, "❌ Произошла ошибка. Попробуйте позднее.", reply_markup=markup)
             bot.delete_state(tg_id, cid)
 
 
@@ -242,14 +226,14 @@ def register_common_handlers(bot):
         if message.text == "Я":
             with bot.retrieve_data(tg_id, cid) as data:
                 data["person"] = "Запрос сформирован всадником"
-            bot.send_message(cid, "Как Вас зовут?", reply_markup=markup_remover)
+            bot.send_message(cid, "Как Вас зовут? Введите имя:", reply_markup=markup_remover)
             bot.set_state(tg_id, MyStates.client, cid)
         elif message.text == "Ребенок":
             with bot.retrieve_data(tg_id, cid) as data:
                 data["person"] = (
                     "Запрос сформирован родителем. Заниматься планирует ребенок"
                 )
-            bot.send_message(cid, "Как Вас зовут?")
+            bot.send_message(cid, "Как Вас зовут? Введите имя:")
             bot.set_state(tg_id, MyStates.parent, cid)
         elif message.text == "Возврат в главное меню🔙":
             back_to_menu(bot, message)
@@ -486,7 +470,7 @@ def register_common_handlers(bot):
         except Exception as e:
             print(f"Ошибка: {e}. Не удалось загрузить картнку, шаг пропущен")
        
-        location_button = types.InlineKeyboardButton(text="Посмотреть на карте", url='https://yandex.ru/maps/-/CHdj788V')
+        location_button = types.InlineKeyboardButton(text="Посмотреть на карте", url='https://yandex.ru/maps/-/CLufyEJM')
         markup_bitza.add(location_button) 
         try:
             with open('src/images/Битца.jpg', 'rb') as photo:
@@ -504,9 +488,9 @@ def register_common_handlers(bot):
         ses = SessionLocal()
         cid = message.chat.id
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
-        btn1 = types.KeyboardButton("Посмотреть график ближайших тренировок")
+        btn1 = types.KeyboardButton("График ближайших тренировок")
         btn2 = types.KeyboardButton("Отменить тренировку")
-        btn3 = types.KeyboardButton("Запросить перенос тренировки")
+        btn3 = types.KeyboardButton("Перенести тренировку")
         btn4 = types.KeyboardButton("Продлить аренду")
         btn5 = types.KeyboardButton("Возврат в главное меню🔙")
         markup.add(btn1, btn2, btn3, btn4, btn5)
@@ -659,8 +643,86 @@ def register_common_handlers(bot):
                 response_text += f"🕒 {dt.strftime('%H:%M')} - 🐴 {tr.horse.horse_name}\n\n"
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             btn1 = types.KeyboardButton("Отменить тренировку")
-            btn2 = types.KeyboardButton("Запросить перенос тренировки")
+            btn2 = types.KeyboardButton("Перенести тренировку")
             btn3 = types.KeyboardButton("Возврат в главное меню🔙")
             markup.add(btn1, btn2, btn3)
             bot.send_message(message.chat.id, response_text, reply_markup=markup, parse_mode="HTML")
 
+    @bot.message_handler(func=lambda message: message.text == Command.CANCEL_WORKOUT)
+    def cancel_workout(message):
+        tg_id = message.from_user.id
+        markup = generate_workout_keyboard(tg_id)
+        if markup:
+            bot.send_message(message.chat.id, "Выберите тренировку для отмены:", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, "У вас нет запланированных тренировок для отмены.")
+        
+        
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('workout_select_'))
+    def allert_to_cancelling(call):
+        cid = call.message.chat.id
+        uid = call.from_user.id
+        username = call.from_user.username
+        ses = SessionLocal()
+        assoc = select(Users).where(Users.user_id==uid)
+        user = ses.execute(assoc).scalar_one_or_none()
+        full_name = user.full_name
+        wo_id = int(call.data.split('_')[2])
+        ses = SessionLocal()
+        assoc = select(Schedule).where(Schedule.schedule_id == wo_id)
+        wo_str = ses.execute(assoc).scalar_one_or_none()
+        wo_datetime = wo_str.scheduled_datetime
+        markup = types.InlineKeyboardMarkup()
+        cancell_button = types.InlineKeyboardButton("Отменить тренировку", callback_data=f"cancell_worout")
+        markup.add(cancell_button)
+        day_of_week = weekdays[wo_datetime.weekday()]
+        month_name = months[wo_datetime.month]
+        admin_message = (
+            f"🚫Юля, у нас отмена!\n\n"
+            f"Ник в тг: @{username}\n"
+            f"Ученик: {full_name}\n"
+            "----------------------------------\n\n"
+            f"Запрошена отмена тренировки на {day_of_week}, {wo_datetime.day} {month_name}"
+            )
+        bot.send_message(ADMIN_ID, admin_message, reply_markup=markup)
+        check_workout_flow(bot, call)
+
+
+    @bot.message_handler(func=lambda message: message.text == Command.RESCHEDULE_WORKOUT)
+    def reschedule_workout(message):
+        tg_id = message.from_user.id
+        markup = generate_workout_keyboard_re(tg_id)
+        if markup:
+            bot.send_message(message.chat.id, "Выберите тренировку для переноса:", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, "У вас нет запланированных тренировок для переноса.")
+        
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('workout_select2_'))
+    def allert_to_cancelling(call):
+        cid = call.message.chat.id
+        uid = call.from_user.id
+        username = call.from_user.username
+        ses = SessionLocal()
+        assoc = select(Users).where(Users.user_id==uid)
+        user = ses.execute(assoc).scalar_one_or_none()
+        full_name = user.full_name
+        wo_id = int(call.data.split('_')[2])
+        ses = SessionLocal()
+        assoc = select(Schedule).where(Schedule.schedule_id == wo_id)
+        wo_str = ses.execute(assoc).scalar_one_or_none()
+        wo_datetime = wo_str.scheduled_datetime
+        markup = types.InlineKeyboardMarkup()
+        cancell_button = types.InlineKeyboardButton("Перенести тренировку", callback_data=f"cancell_worout")
+        markup.add(cancell_button)
+        day_of_week = weekdays[wo_datetime.weekday()]
+        month_name = months[wo_datetime.month]
+        admin_message = (
+            f"🔄Юля, у нас перенос!\n\n"
+            f"Ник в тг: @{username}\n"
+            f"Ученик: {full_name}\n"
+            "----------------------------------\n\n"
+            f"Запрошен перенос тренировки {day_of_week}, {wo_datetime.day} {month_name}"
+            )
+        bot.send_message(ADMIN_ID, admin_message, reply_markup=markup)
+        check_workout_flow(bot, call)

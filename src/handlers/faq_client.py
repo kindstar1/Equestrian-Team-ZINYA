@@ -7,6 +7,14 @@ from src.handlers.common import back_to_menu
 from src.config import ADMIN_ID
 from src.handlers.common import markup_remover
 
+allure_list = [
+    "Нет опыта верховой езды",
+    "Начальный: шаг",
+    "Средний: шаг + рысь",
+    "Продвинутый: все 3 аллюра"
+]
+
+
 def register_client_faq_handlers(bot):
 
     # Цепочка вопросов для сбора информаии о взрослом
@@ -32,6 +40,7 @@ def register_client_faq_handlers(bot):
                 cid,
                 f"❗{client_name}, тренер запросит контакт родителей для обсуждения условий занятий!",
             )
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             btn1 = types.KeyboardButton("Нет опыта верховой езды")
             btn2 = types.KeyboardButton("Начальный: шаг")
             btn3 = types.KeyboardButton("Средний: шаг + рысь")
@@ -40,7 +49,7 @@ def register_client_faq_handlers(bot):
             bot.send_message(cid, "Какой у Вас уровень верховой езды?", reply_markup=markup)
             bot.set_state(tg_id, MyStates.get_level, cid)
         else:
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True,  row_width=2)
             btn1 = types.KeyboardButton("Нет опыта верховой езды")
             btn2 = types.KeyboardButton("Начальный: шаг")
             btn3 = types.KeyboardButton("Средний: шаг + рысь")
@@ -54,9 +63,12 @@ def register_client_faq_handlers(bot):
     def get_scheduled(message):
         cid = message.chat.id
         tg_id = message.from_user.id
-        with bot.retrieve_data(tg_id, cid) as data:
-            data["client_level"] = message.text
-        ask_for_schedule(message)
+        if message.text not in allure_list:
+            bot.send_message(cid, "Команда не распознана, пожалуйста, используйте кнопки.")
+        else:
+            with bot.retrieve_data(tg_id, cid) as data:
+                data["client_level"] = message.text
+            ask_for_schedule(message)
 
 
     @bot.callback_query_handler(state=MyStates.get_schedule, func=lambda call: True)
@@ -74,7 +86,7 @@ def register_client_faq_handlers(bot):
                         show_alert=True,
                     )
                     return
-                bot.send_message(cid, "Напишите удобное время для занятий в формате чч:мм::")
+                bot.send_message(cid, "Напишите удобное время для занятий в формате чч:мм:")
                 bot.set_state(tg_id, MyStates.get_time, cid)
                 return
             item_name = call.data.split("_")[1]
@@ -147,7 +159,7 @@ def register_client_faq_handlers(bot):
         initial_markup = generate_schedule_keyboard([])
         bot.send_message(
             cid,
-            "Выберите удобные дни недели для занятий (можно несколько вариантов)\nСначала нажмите на дни недели, в которые удобно посещать занятия, затем нажмите на кнопку 'Готово'",
+            "Выберите удобные дни недели для занятий (можно несколько вариантов), затем нажмите на кнопку 'Готово'",
             reply_markup=initial_markup,
         )
         bot.set_state(tg_id, MyStates.get_schedule, cid)
