@@ -182,7 +182,7 @@ def register_common_handlers(bot):
                 data["support_req"] = message.text
                 support_message = (
                     f"🚨 Новое обращение в тех.поддержку!\n\n"
-                    f"Ник в тг: {username}\n"
+                    f"Ник в тг: @{username}\n"
                     f"ID пользователя: {tg_id}\n"
                     "----------------------------------\n"
                     f"Описание проблемы: {data.get('support_req')}\n"
@@ -398,12 +398,12 @@ def register_common_handlers(bot):
     def signing_from_command(message):
         start_signing_flow(bot, message)
     
-    @bot.message_handler(commands=["menu"])
-    def menu(message):
-        cid = message.chat.id
-        tg_id = message.from_user.id
-        bot.send_message(cid, "Вы в главном меню. Что Вас интересует?", reply_markup=markup_remover)
-        bot.delete_state(tg_id, cid)
+    # @bot.message_handler(commands=["menu"])
+    # def menu(message):
+    #     cid = message.chat.id
+    #     tg_id = message.from_user.id
+    #     bot.send_message(cid, "Вы в главном меню. Что Вас интересует?", reply_markup=markup_remover)
+    #     bot.delete_state(tg_id, cid)
     
     @bot.message_handler(commands=["info"])
     def info_about_team(message):

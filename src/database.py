@@ -1,25 +1,22 @@
-import os
+# import psycopg2
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta, date
-
+from src.config import DATABASE_URL
 from src.models import Base, Horses, Schedule, Rent, TrainTypes, TrainTypeTrainType, Users, UserRole, UserStatus, RentStatus, ScheduleStatus, Review
 
-db_file = 'clients.db'
-engine = sqlalchemy.create_engine(f'sqlite:///{db_file}')
+
+engine = sqlalchemy.create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 session = SessionLocal()
 
 if __name__ == '__main__':
-    if os.path.exists(db_file):
-        os.remove(db_file)
-        print(f"Файл базы данных '{db_file}' удален.")
     print("Создание таблиц в базе данных...")
     
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     
-    print(f"✅ База данных '{db_file}' успешно создана/проверена.")
+    print("✅ База данных PostgreSQL готова к работе.")
     print("Все таблицы на месте.")
 
     def generate_const_data():

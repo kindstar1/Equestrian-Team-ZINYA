@@ -16,7 +16,7 @@ def register_client_faq_handlers(bot):
         tg_id = message.from_user.id
         with bot.retrieve_data(tg_id, cid) as data:
             data["client_name"] = message.text
-        bot.send_message(cid, "Cколько Вам лет?")
+        bot.send_message(cid, "Cколько Вам лет? Введите цифру:")
         bot.set_state(tg_id, MyStates.get_age, cid)
 
 
@@ -30,10 +30,15 @@ def register_client_faq_handlers(bot):
             client_name = data.get("client_name")
             bot.send_message(
                 cid,
-                f"{client_name}, к сожалению, на данный момент тренировки для всадников младше 12-ти лет не поводим :( Но будем Вас ждать немного позже!",
+                f"❗{client_name}, тренер запросит контакт родителей для обсуждения условий занятий!",
             )
-            back_to_menu(bot, message)
-            bot.delete_state(tg_id, cid)
+            btn1 = types.KeyboardButton("Нет опыта верховой езды")
+            btn2 = types.KeyboardButton("Начальный: шаг")
+            btn3 = types.KeyboardButton("Средний: шаг + рысь")
+            btn4 = types.KeyboardButton("Продвинутый: все 3 аллюра")
+            markup.add(btn1, btn2, btn3, btn4)
+            bot.send_message(cid, "Какой у Вас уровень верховой езды?", reply_markup=markup)
+            bot.set_state(tg_id, MyStates.get_level, cid)
         else:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=2)
             btn1 = types.KeyboardButton("Нет опыта верховой езды")
@@ -69,7 +74,7 @@ def register_client_faq_handlers(bot):
                         show_alert=True,
                     )
                     return
-                bot.send_message(cid, "Напишите удобное время для занятий:")
+                bot.send_message(cid, "Напишите удобное время для занятий в формате чч:мм::")
                 bot.set_state(tg_id, MyStates.get_time, cid)
                 return
             item_name = call.data.split("_")[1]
@@ -112,7 +117,7 @@ def register_client_faq_handlers(bot):
                 user_info = f"(@{username})"
             admin_message = (
                 f"🔔 Новая заявка на занятие!\n\n"
-                f"Ник в тг: {user_info}\n"
+                f"Ник в тг: @{user_info}\n"
                 f"ID пользователя: {tg_id}\n"
                 "----------------------------------\n"
                 f"{data.get('person')}\n"
@@ -125,7 +130,7 @@ def register_client_faq_handlers(bot):
                 )
             bot.send_message(ADMIN_ID, admin_message, reply_markup=markup)
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton("Возврат в главное меню")
+        btn1 = types.KeyboardButton("Возврат в главное меню🔙")
         markup.add(btn1)
         bot.send_message(
             cid,
@@ -142,7 +147,7 @@ def register_client_faq_handlers(bot):
         initial_markup = generate_schedule_keyboard([])
         bot.send_message(
             cid,
-            "Выберите удобные дни недели для занятий (можно несколько вариантов):",
+            "Выберите удобные дни недели для занятий (можно несколько вариантов)\nСначала нажмите на дни недели, в которые удобно посещать занятия, затем нажмите на кнопку 'Готово'",
             reply_markup=initial_markup,
         )
         bot.set_state(tg_id, MyStates.get_schedule, cid)

@@ -115,7 +115,7 @@ class Horses(Base):
 class TrainTypes(Base):
     __tablename__ = 'TrainTypes'
     train_id = Column(Integer, primary_key=True)
-    train_type = Column(Enum(TrainTypeTrainType), nullable=False)
+    train_type = Column(Enum(TrainTypeTrainType), unique=True, nullable=False)
 
 class Schedule(Base):
     __tablename__ = 'Schedule'
