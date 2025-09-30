@@ -132,12 +132,15 @@ def register_common_handlers(bot):
         with bot.retrieve_data(tg_id, cid) as data:
             data["full_name"] = message.text
         full_name = data["full_name"]
-        if tg_id == 111111111:
+        if tg_id == 111111111: # ЗАМЕНИТЬ НА РЕАЛЬНЫЙ ID ЮЛИ
             user = Users(user_id=tg_id, full_name=full_name, username = tg_name, role = UserRole.admin)
-            bot.send_message(cid,
-            f"Привет, Юля! Ты зашла в админку бота. Открой меню для просмотра доступных функций🔽")
             ses.add(user)
             ses.commit()
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            btn1 = types.KeyboardButton("/admin")
+            markup.add(btn1)
+            bot.send_message(cid,
+            f"Привет, Юля! Тебя я распознаю, как тренера. Чобы воспользоваться этими привелегиями, введи команду /admin. Далее откроется меню для доступных функций🔽", reply_markup=markup)
         else:
             user = Users(user_id=tg_id, full_name=full_name, username = tg_name, role = UserRole.student, status = UserStatus.inactive)
             ses.add(user)
@@ -371,7 +374,7 @@ def register_common_handlers(bot):
         user = ses.query(Users).filter_by(user_id=tg_id).first()
         if user is None:
             bot.send_message(cid,
-            f"Привет! Я бот команды ZINYA EQ. Представься, пожалуйста: ")
+            f"Привет! Я бот команды ZINYA EQUESTRIAN. Представься, пожалуйста, ниже в формате Имя Фамилия: ")
             bot.set_state(tg_id, MyStates.greeting, cid)
         else:
             bot.send_message(cid,
@@ -619,7 +622,7 @@ def register_common_handlers(bot):
         if not schedule_list:
             assoc = select(Users).where(Users.user_id==tg_id)
             check_status = ses.execute(assoc).scalar_one_or_none()
-            if check_status.status == 'inactive':
+            if check_status.status == UserStatus.inactive:
                 markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
                 btn1 = types.KeyboardButton("Записаться на пробную тренировку")
                 btn2 = types.KeyboardButton("Возврат в главное меню🔙")

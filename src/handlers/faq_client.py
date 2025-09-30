@@ -129,7 +129,7 @@ def register_client_faq_handlers(bot):
                 user_info = f"(@{username})"
             admin_message = (
                 f"🔔 Новая заявка на занятие!\n\n"
-                f"Ник в тг: @{user_info}\n"
+                f"Ник в тг: {user_info}\n"
                 f"ID пользователя: {tg_id}\n"
                 "----------------------------------\n"
                 f"{data.get('person')}\n"
